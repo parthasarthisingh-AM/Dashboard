@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OPD Limit Utilization Dashboard</title>
+<style>
+:root{--bg:#f3f5f7;--card:#fff;--ink:#14212b;--mute:#5d6b76;--line:#dde3e8;--hi:#c2410c;--mon:#0f766e;--ok:#94a3b8;--track:#e9eef2;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e161c;--card:#16212a;--ink:#e6edf2;--mute:#8fa0ad;--line:#26343f;--hi:#fb923c;--mon:#2dd4bf;--ok:#64748b;--track:#22303a}}
+:root[data-theme="dark"]{--bg:#0e161c;--card:#16212a;--ink:#e6edf2;--mute:#8fa0ad;--line:#26343f;--hi:#fb923c;--mon:#2dd4bf;--ok:#64748b;--track:#22303a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans","Segoe UI",system-ui,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:28px 18px 48px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--mute);margin:0 0 22px;max-width:70ch}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.kpi b{display:block;font-size:26px;letter-spacing:-.02em}
+.kpi span{color:var(--mute);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+.card h2{font-size:16px;margin:0 0 2px}
+.card p{margin:0 0 14px;color:var(--mute);font-size:13px}
+.row{display:grid;grid-template-columns:120px 1fr 64px;align-items:center;gap:10px;margin:7px 0;font-size:13.5px}
+.track{background:var(--track);border-radius:4px;height:16px;overflow:hidden}
+.fill{height:100%;border-radius:4px}
+.val{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.hi{background:var(--hi)}.mon{background:var(--mon)}.ok{background:var(--ok)}.neu{background:var(--mon)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--mute);margin:0 0 16px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+.full{grid-column:1/-1}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:560px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mute);font-weight:600;font-size:12.5px}
+.tag{padding:2px 8px;border-radius:99px;font-size:12px;color:#fff;white-space:nowrap}
+.note{margin-top:14px;font-size:13px;color:var(--mute)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>OPD limit utilization</h1>
+<p class="sub">Limit pressure is concentrated in Vaccination, Dental, Vision and Pharmacy. Consultation limits are not restrictive.</p>
+
+<div class="kpis">
+<div class="kpi"><b>₹113.32 L</b><span>Total OPD utilization</span></div>
+<div class="kpi"><b>15.5%</b><span>Overall utilization vs cap</span></div>
+<div class="kpi"><b>333</b><span>Claims above remaining cap (280 members)</span></div>
+<div class="kpi"><b>₹15.56 L</b><span>Demand above cap, not paid out</span></div>
+<div class="kpi"><b>104</b><span>Claims citing limit exhaustion</span></div>
+</div>
+
+<div class="legend">
+<span><i class="hi"></i>Higher priority for limit review</span>
+<span><i class="mon"></i>Monitor</span>
+<span><i class="ok"></i>No evidence of restriction</span>
+</div>
+
+<div class="grid">
+<div class="card"><h2>Utilization vs category cap</h2><p>Share of the category cap used</p><div id="c1"></div></div>
+<div class="card"><h2>Members exhausting their limit</h2><p>Exhaustion rate among members using the category</p><div id="c2"></div></div>
+<div class="card"><h2>Claim demand above remaining cap</h2><p>₹ Lakh that could not be accommodated</p><div id="c3"></div></div>
+<div class="card"><h2>Limit-exhaustion cases by beneficiary</h2><p>104 explicit cases. Parents with Pharmacy: 40. Children with Vaccination: 16.</p><div id="c4"></div></div>
+
+<div class="card full"><h2>Category summary</h2><p>Actual utilization, share of total and limit pressure</p>
+<div class="scroll"><table id="t"></table></div>
+<div class="note">Limit-exhaustion claims by category: Pharmacy 62 (₹1.32 L), Vaccination 20 (₹1.11 L), Diagnostics 6, Dental 5, Health Check 5, Inclinic 3, Vision 3, Online 0. The 183 claims in query status are mostly documentation issues, not limits.</div></div>
+</div>
+</div>
+
+<script>
+var D=[
+["Vaccination","hi",7.99,7.1,53.2,29.8,51,58,98+0,1.93,"25%"],
+["Dental","hi",11.52,10.2,35.2,13.0,28,33,47,5.99,"50%"],
+["Vision","hi",12.87,11.4,36.3,11.7,35,45,55,2.43,"40%"],
+["Pharmacy","hi",26.70,23.6,22.5,3.9,51,66,98,2.55,"30%"],
+["Health Check","mon",11.27,9.9,33.2,5.4,22,25,26,1.26,"30%"],
+["Diagnostics","mon",28.40,25.1,20.9,2.6,24,35,37,1.11,"50%"],
+["Inclinic Consult","ok",13.16,11.6,4.2,0,0,0,3,0.28,"80%"],
+["Online Consult","ok",1.40,1.2,3.4,0,0,0,0,0,"80%"]];
+D[0][8]=67;
+function bars(id,rows,fmt,max,cls){
+ var h="";rows.forEach(function(r){
+  var w=max?Math.max(r[1]/max*100,r[1]>0?1.5:0):0;
+  h+='<div class="row"><span>'+r[0]+'</span><div class="track"><div class="fill '+(cls||r[2])+'" style="width:'+w+'%"></div></div><span class="val">'+fmt(r[1])+'</span></div>';});
+ document.getElementById(id).innerHTML=h;}
+function col(i){return D.map(function(d){return [d[0],d[i],d[1]]});}
+function sorted(i){return col(i).sort(function(a,b){return b[1]-a[1]});}
+bars("c1",sorted(4),function(v){return v+"%"},60);
+bars("c2",sorted(5),function(v){return v+"%"},35);
+bars("c3",sorted(9),function(v){return "₹"+v.toFixed(2)+" L"},6.5);
+bars("c4",[["Parents",49],["Children",21],["Self",20],["Spouse",9],["In-laws",5]],function(v){return v},52,"neu");
+var lab={hi:"Review",mon:"Monitor",ok:"No concern"};
+var t='<tr><th>Category</th><th>Sublimit</th><th>Utilization</th><th>Share</th><th>Exhausting</th><th>At 90%+</th><th>Above-cap claims</th><th>Priority</th></tr>';
+D.forEach(function(d){t+='<tr><td>'+d[0]+'</td><td>'+d[10]+'</td><td>₹'+d[2].toFixed(2)+' L</td><td>'+d[3]+'%</td><td>'+d[6]+'</td><td>'+d[7]+'</td><td>'+d[8]+'</td><td><span class="tag '+d[1]+'">'+lab[d[1]]+'</span></td></tr>';});
+document.getElementById("t").innerHTML=t;
+</script>
+</body>
+</html>
